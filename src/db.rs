@@ -51,11 +51,7 @@ impl Db {
         #[cfg(feature = "metrics")]
         let _measure = Measure::new(&M.tree_start);
 
-        println!("yo4.5");
-
         let context = Context::start(config)?;
-
-        println!("yo5");
 
         #[cfg(not(miri))]
         {
@@ -70,8 +66,6 @@ impl Db {
             *context.flusher.lock() = flusher;
         }
 
-        println!("yo6");
-
         // create or open the default tree
         let guard = pin();
         let default =
@@ -83,11 +77,7 @@ impl Db {
             tenants: Arc::new(RwLock::new(FastMap8::default())),
         };
 
-        println!("yo7");
-
         let mut tenants = ret.tenants.write();
-
-        println!("yo8");
 
         for (id, root) in &context.pagecache.get_meta(&guard).inner {
             let tree = Tree(Arc::new(TreeInner {
@@ -99,8 +89,6 @@ impl Db {
             }));
             assert!(tenants.insert(id.clone(), tree).is_none());
         }
-
-        println!("yo9");
 
         drop(tenants);
 

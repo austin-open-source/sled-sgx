@@ -352,20 +352,15 @@ impl Config {
     pub fn open(&self) -> Result<Db> {
         // only validate, setup directory, and open file once
         self.validate()?;
-        println!("yo");
 
         let mut config = self.clone();
         config.limit_cache_max_memory();
 
         let file = config.open_file()?;
 
-        println!("yo2");
-
         let heap_path = config.get_path().join("heap");
         let heap = Heap::start(&heap_path)?;
         maybe_fsync_directory(heap_path)?;
-
-        println!("yo3");
 
         // seal config in a Config
         let config = RunningConfig {
@@ -373,7 +368,6 @@ impl Config {
             file: Arc::new(file),
             heap: Arc::new(heap),
         };
-        println!("yo4");
         Db::start_inner(config)
     }
 
