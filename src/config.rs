@@ -412,15 +412,15 @@ impl Config {
             .as_nanos()
             << 48;
 
-        #[cfg(not(miri))]
+        #[cfg(all(not(miri), not(target_vendor = "teaclave")))]
         let pid = u128::from(std::process::id());
 
-        #[cfg(miri)]
+        #[cfg(any(miri, target_vendor = "teaclave"))]
         let pid = 0;
 
         let salt = (pid << 16) + now + seed;
 
-        if cfg!(target_os = "linux") {
+        if cfg!(all(target_os = "linux", not(target_vendor = "teaclave"))) {
             // use shared memory for temporary linux files
             format!("/dev/shm/pagecache.tmp.{}", salt).into()
         } else {
