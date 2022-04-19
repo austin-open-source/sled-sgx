@@ -1,5 +1,17 @@
+#[cfg(not(target_vendor = "teaclave"))]
 use std::{
     fs,
+    fs::File,
+    io,
+    io::{BufRead, BufReader, ErrorKind, Read, Seek, Write},
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::atomic::AtomicUsize,
+};
+
+#[cfg(target_vendor = "teaclave")]
+use std::{
+    untrusted::fs,
     fs::File,
     io,
     io::{BufRead, BufReader, ErrorKind, Read, Seek, Write},
@@ -340,15 +352,20 @@ impl Config {
     pub fn open(&self) -> Result<Db> {
         // only validate, setup directory, and open file once
         self.validate()?;
+        println!("yo");
 
         let mut config = self.clone();
         config.limit_cache_max_memory();
 
         let file = config.open_file()?;
 
+        println!("yo2");
+
         let heap_path = config.get_path().join("heap");
         let heap = Heap::start(&heap_path)?;
         maybe_fsync_directory(heap_path)?;
+
+        println!("yo3");
 
         // seal config in a Config
         let config = RunningConfig {
@@ -356,7 +373,7 @@ impl Config {
             file: Arc::new(file),
             heap: Arc::new(heap),
         };
-
+        println!("yo4");
         Db::start_inner(config)
     }
 
@@ -532,6 +549,7 @@ impl Config {
     fn try_lock(&self, file: File) -> Result<File> {
         #[cfg(all(
             not(miri),
+            not(target_vendor = "teaclave"),
             any(windows, target_os = "linux", target_os = "macos")
         ))]
         {
@@ -756,7 +774,7 @@ impl Deref for RunningConfig {
     }
 }
 
-#[cfg(all(not(miri), any(windows, target_os = "linux", target_os = "macos")))]
+#[cfg(all(not(miri), not(target_vendor = "teaclave"), any(windows, target_os = "linux", target_os = "macos")))]
 impl Drop for RunningConfig {
     fn drop(&mut self) {
         use fs2::FileExt;

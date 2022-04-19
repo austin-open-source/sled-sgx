@@ -745,7 +745,7 @@ impl IoBufs {
         let stored_max_stable_lsn = iobuf.stored_max_stable_lsn;
 
         io_fail!(self, "buffer write");
-        #[cfg(feature = "io_uring")]
+        #[cfg(all(feature = "io_uring", not(target_vendor = "teaclave")))]
         {
             let mut wrote = 0;
             while wrote < total_len {
@@ -794,14 +794,14 @@ impl IoBufs {
                 wrote += wrote_completion.wait()?;
             }
         }
-        #[cfg(not(feature = "io_uring"))]
+        #[cfg(any(not(feature = "io_uring"), target_vendor = "teaclave"))]
         {
             let f = &self.config.file;
             pwrite_all(f, data, log_offset)?;
             if !self.config.temporary {
                 if iobuf.from_tip {
                     f.sync_all()?;
-                } else if cfg!(not(target_os = "linux")) {
+                } else if cfg!(any(not(target_os = "linux"), target_vendor = "teaclave")) {
                     f.sync_data()?;
                 } else {
                     #[allow(clippy::assertions_on_constants)]

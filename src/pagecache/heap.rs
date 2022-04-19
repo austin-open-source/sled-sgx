@@ -132,7 +132,7 @@ impl Reservation {
         // sync data
         if self.from_tip {
             self.file.sync_all()?;
-        } else if cfg!(not(target_os = "linux")) {
+        } else if cfg!(any(not(target_os = "linux"), target_vendor = "teaclave")) {
             self.file.sync_data()?;
         } else {
             #[allow(clippy::assertions_on_constants)]
@@ -387,7 +387,7 @@ impl Slab {
     }
 
     fn punch_hole(&self, #[allow(unused)] idx: u32) {
-        #[cfg(all(target_os = "linux", not(miri)))]
+        #[cfg(all(target_os = "linux", not(miri), not(target_vendor = "teaclave")))]
         {
             use std::{
                 os::unix::io::AsRawFd,

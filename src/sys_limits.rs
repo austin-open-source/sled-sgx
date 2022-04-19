@@ -13,13 +13,13 @@ use std::convert::TryFrom;
 /// If there's no memory limit specified on the container this may return
 /// 0x7FFFFFFFFFFFF000 (2^63-1 rounded down to 4k which is a common page size).
 /// So we know we are not running in a memory restricted environment.
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(target_vendor = "teaclave")))]
 fn get_cgroup_memory_limit() -> io::Result<u64> {
     File::open("/sys/fs/cgroup/memory/memory.limit_in_bytes")
         .and_then(read_u64_from)
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(target_vendor = "teaclave")))]
 fn read_u64_from(mut file: File) -> io::Result<u64> {
     let mut s = String::new();
     file.read_to_string(&mut s).and_then(|_| {
@@ -32,7 +32,7 @@ fn read_u64_from(mut file: File) -> io::Result<u64> {
 /// Returns the maximum size of total available memory of the process, in bytes.
 /// If this limit is exceeded, the malloc() and mmap() functions shall fail with
 /// errno set to [ENOMEM].
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_vendor = "teaclave")))]
 fn get_rlimit_as() -> io::Result<libc::rlimit> {
     let mut limit = std::mem::MaybeUninit::<libc::rlimit>::uninit();
 
@@ -45,7 +45,7 @@ fn get_rlimit_as() -> io::Result<libc::rlimit> {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_vendor = "teaclave")))]
 pub fn get_available_memory() -> io::Result<usize> {
     let pages = unsafe { libc::sysconf(libc::_SC_PHYS_PAGES) };
     if pages == -1 {
@@ -67,9 +67,10 @@ pub fn get_memory_limit() -> Option<usize> {
 
 #[cfg(not(miri))]
 pub fn get_memory_limit() -> Option<usize> {
+    #[allow(unused_assignments)]
     let mut max: u64 = 0;
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(target_vendor = "teaclave")))]
     {
         if let Ok(mem) = get_cgroup_memory_limit() {
             max = mem;
@@ -86,7 +87,7 @@ pub fn get_memory_limit() -> Option<usize> {
     }
 
     #[allow(clippy::useless_conversion)]
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(all(any(target_os = "linux", target_os = "macos"), not(target_vendor = "teaclave")))]
     {
         if let Ok(rlim) = get_rlimit_as() {
             let rlim_cur = u64::try_from(rlim.rlim_cur).unwrap();
@@ -100,6 +101,16 @@ pub fn get_memory_limit() -> Option<usize> {
                 max = available as u64;
             }
         }
+    }
+
+    #[cfg(target_vendor = "teaclave")]
+    {
+        // SGX environment
+        // Getting enclave max memory size through sgx_trts
+        extern crate sgx_trts;
+        use sgx_trts::capi;
+
+        max = capi::sgx_get_heap_size()  as u64;
     }
 
     #[cfg(miri)]
